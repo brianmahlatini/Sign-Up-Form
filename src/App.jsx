@@ -475,20 +475,9 @@ function App() {
   return (
     <div className="app">
       <div className="form-container">
-        <h1>Sign Up Form</h1>
-        <h2 className="form-subtitle">Policy Signup Form</h2>
+        <h1>Policy Enrollment Form</h1>
         
-        {/* CORS Warning Banner */}
-        <div className="cors-warning">
-          <p>
-            ⚠️ <strong>Development Notice:</strong> Using CORS proxy for testing. 
-            Make sure you have unlocked CORS Anywhere at{' '}
-            <a href="https://cors-anywhere.herokuapp.com" target="_blank" rel="noopener noreferrer">
-              https://cors-anywhere.herokuapp.com
-            </a>
-          </p>
-        </div>
-
+        
         {submitStatus && (
           <div className={`status-message ${submitStatus.type}`}>
             {typeof submitStatus.message === 'string' ? submitStatus.message : submitStatus.message}
