@@ -9,9 +9,9 @@ function App() {
     coverageOption: '' // Will store the selected option with amount
   });
 
-  // Main Member State (policyNumber removed)
+  // Main Member State
   const [mainMember, setMainMember] = useState({
-    fullName: '',
+    firstName: '',
     surname: '',
     idNumber: '',
     cellphone: '',
@@ -79,6 +79,17 @@ function App() {
   const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/';
   const WEBHOOK_URL = 'https://kgadev.app.n8n.cloud/webhook-test/policy-signup';
 
+  // Helper function to determine policy type from coverage option
+  const getPolicyTypeFromCoverage = () => {
+    if (!policySelection.coverageOption) return null;
+    
+    const option = policySelection.coverageOption;
+    if (option.includes('FAMILY')) return 'family';
+    if (option.includes('INDIVIDUAL')) return 'individual';
+    if (option.includes('SINGLE PARENT')) return 'single';
+    return null;
+  };
+
   // Get coverage options based on selected product
   const getCoverageOptions = () => {
     if (policySelection.selectedProduct === 'essential') {
@@ -119,19 +130,73 @@ function App() {
       // Reset coverage option when product changes
       ...(name === 'selectedProduct' && { coverageOption: '' })
     }));
+    
+    // Clear sections when policy type changes
+    if (name === 'coverageOption' && policySelection.selectedProduct === 'essential') {
+      // Clear spouses and dependants if not allowed for this policy type
+      const policyType = value.includes('FAMILY') ? 'family' : 
+                         value.includes('INDIVIDUAL') ? 'individual' : 
+                         value.includes('SINGLE PARENT') ? 'single' : null;
+      
+      if (policyType === 'individual') {
+        // Individual: clear spouses and dependants
+        setSpouses([]);
+        setDependants([]);
+      } else if (policyType === 'single') {
+        // Single Parent: clear spouses only
+        setSpouses([]);
+      }
+      // Family: keep all sections
+    }
   };
 
-  // Add functions for repeatable sections
+  // Check if spouses can be added
+  const canAddSpouse = () => {
+    // For XMAS BOX, spouses can be added
+    if (policySelection.selectedProduct === 'xmas') return true;
+    
+    // For Essential, only FAMILY policies can add spouses
+    const policyType = getPolicyTypeFromCoverage();
+    return policyType === 'family';
+  };
+
+  // Check if dependants can be added
+  const canAddDependant = () => {
+    // For XMAS BOX, dependants can be added
+    if (policySelection.selectedProduct === 'xmas') return true;
+    
+    // For Essential, FAMILY and SINGLE PARENT policies can add dependants
+    const policyType = getPolicyTypeFromCoverage();
+    return policyType === 'family' || policyType === 'single';
+  };
+
+  // Check if extended family can be added
+  const canAddExtendedFamily = () => {
+    // For XMAS BOX, extended family CANNOT be added
+    if (policySelection.selectedProduct === 'xmas') return false;
+    
+    // For Essential, FAMILY, INDIVIDUAL, and SINGLE PARENT can all add extended family
+    const policyType = getPolicyTypeFromCoverage();
+    return policyType === 'family' || policyType === 'individual' || policyType === 'single';
+  };
+
+  // Add functions for repeatable sections with permission checks
   const addSpouse = () => {
-    setSpouses([...spouses, { name: '', surname: '', idNumber: '' }]);
+    if (canAddSpouse()) {
+      setSpouses([...spouses, { name: '', surname: '', idNumber: '' }]);
+    }
   };
 
   const addDependant = () => {
-    setDependants([...dependants, { name: '', surname: '', idNumber: '' }]);
+    if (canAddDependant()) {
+      setDependants([...dependants, { name: '', surname: '', idNumber: '' }]);
+    }
   };
 
   const addExtendedFamily = () => {
-    setExtendedFamily([...extendedFamily, { name: '', surname: '', idNumber: '' }]);
+    if (canAddExtendedFamily()) {
+      setExtendedFamily([...extendedFamily, { name: '', surname: '', idNumber: '' }]);
+    }
   };
 
   // Remove functions for repeatable sections
@@ -309,7 +374,7 @@ function App() {
     });
     
     setMainMember({
-      fullName: '',
+      firstName: '',
       surname: '',
       idNumber: '',
       cellphone: '',
@@ -342,7 +407,7 @@ function App() {
     }
   };
 
-  // Handle form submission - CORRECTED VERSION for CORS Anywhere
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -354,10 +419,9 @@ function App() {
     try {
       const jsonData = await prepareJSONData();
       
-      // Log the data being sent (for debugging)
       console.log('Submitting data:', jsonData);
 
-      // Try direct connection first (in case CORS is enabled)
+      // Try direct connection first
       try {
         const directResponse = await axios({
           method: 'post',
@@ -383,16 +447,14 @@ function App() {
         console.log('Direct connection failed, using proxy:', directError.message);
       }
 
-      // Use CORS proxy with minimal headers (no X-Requested-With to avoid preflight)
+      // Use CORS proxy
       const proxyUrl = CORS_PROXY + WEBHOOK_URL;
       
-      // Using fetch instead of axios for better CORS Anywhere compatibility
       const response = await fetch(proxyUrl, {
         method: 'POST',
         mode: 'cors',
         headers: {
           'Content-Type': 'application/json'
-          // Don't add X-Requested-With or other custom headers that trigger preflight
         },
         body: JSON.stringify(jsonData)
       });
@@ -402,7 +464,6 @@ function App() {
         throw new Error(`Server responded with status: ${response.status} - ${errorText}`);
       }
 
-      // Try to parse response as JSON, handle empty responses
       let responseData;
       try {
         responseData = await response.json();
@@ -417,13 +478,11 @@ function App() {
         message: '✅ Form submitted successfully!'
       });
 
-      // Reset form after successful submission
       resetForm();
 
     } catch (error) {
       console.error('Submission error:', error.message);
 
-      // Check if it's the n8n webhook not activated error
       if (error.message.includes('404') || error.message.includes('not registered')) {
         setSubmitStatus({
           type: 'error',
@@ -435,7 +494,7 @@ function App() {
               </p>
               <ol style={{ textAlign: 'left', marginTop: '10px', paddingLeft: '20px' }}>
                 <li>Open your n8n workflow</li>
-                <li>Click the <strong>"Execute Workflow"</strong> button (play icon) at the bottom</li>
+                <li>Click the <strong>"Execute Workflow"</strong> button at the bottom</li>
                 <li>Keep the workflow running</li>
                 <li>Submit this form again</li>
               </ol>
@@ -471,12 +530,12 @@ function App() {
   };
 
   const coverageOptions = getCoverageOptions();
+  const policyType = getPolicyTypeFromCoverage();
 
   return (
     <div className="app">
       <div className="form-container">
         <h1>Policy Enrollment Form</h1>
-        
         
         {submitStatus && (
           <div className={`status-message ${submitStatus.type}`}>
@@ -490,14 +549,14 @@ function App() {
             <h2>Main Member Information <span className="required-badge">Required</span></h2>
             <div className="form-grid">
               <div className="form-group">
-                <label>Full Name *</label>
+                <label>First Name *</label>
                 <input
                   type="text"
-                  name="fullName"
-                  value={mainMember.fullName}
+                  name="firstName"
+                  value={mainMember.firstName}
                   onChange={handleMainMemberChange}
                   required
-                  placeholder="Enter full name"
+                  placeholder="Enter first name"
                 />
               </div>
               <div className="form-group">
@@ -613,179 +672,185 @@ function App() {
             )}
           </section>
 
-          {/* Section 3: Spouses */}
-          <section className="form-section">
-            <div className="section-header">
-              <h2>Spouses</h2>
-              <button type="button" onClick={addSpouse} className="add-button">
-                ➕ Add Another Spouse
-              </button>
-            </div>
-            {spouses.length === 0 ? (
-              <p className="empty-section">No spouses added. Click the button above to add.</p>
-            ) : (
-              spouses.map((spouse, index) => (
-                <div key={index} className="repeatable-item">
-                  <div className="repeatable-header">
-                    <h3>Spouse #{index + 1}</h3>
-                    <button
-                      type="button"
-                      onClick={() => removeSpouse(index)}
-                      className="remove-button"
-                      title="Remove spouse"
-                    >
-                      ✖
-                    </button>
+          {/* Section 3: Spouses - For FAMILY policy (Essential) or any XMAS BOX */}
+          {(policyType === 'family' || policySelection.selectedProduct === 'xmas') && (
+            <section className="form-section">
+              <div className="section-header">
+                <h2>Spouses</h2>
+                <button type="button" onClick={addSpouse} className="add-button">
+                  ➕ Add Another Spouse
+                </button>
+              </div>
+              {spouses.length === 0 ? (
+                <p className="empty-section">No spouses added. Click the button above to add.</p>
+              ) : (
+                spouses.map((spouse, index) => (
+                  <div key={index} className="repeatable-item">
+                    <div className="repeatable-header">
+                      <h3>Spouse #{index + 1}</h3>
+                      <button
+                        type="button"
+                        onClick={() => removeSpouse(index)}
+                        className="remove-button"
+                        title="Remove spouse"
+                      >
+                        ✖
+                      </button>
+                    </div>
+                    <div className="form-grid">
+                      <div className="form-group">
+                        <label>Spouse Name</label>
+                        <input
+                          type="text"
+                          value={spouse.name}
+                          onChange={(e) => updateSpouse(index, 'name', e.target.value)}
+                          placeholder="Enter spouse name"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Spouse Surname</label>
+                        <input
+                          type="text"
+                          value={spouse.surname}
+                          onChange={(e) => updateSpouse(index, 'surname', e.target.value)}
+                          placeholder="Enter spouse surname"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Spouse ID Number</label>
+                        <input
+                          type="text"
+                          value={spouse.idNumber}
+                          onChange={(e) => updateSpouse(index, 'idNumber', e.target.value)}
+                          placeholder="Enter spouse ID number"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="form-grid">
-                    <div className="form-group">
-                      <label>Spouse Name</label>
-                      <input
-                        type="text"
-                        value={spouse.name}
-                        onChange={(e) => updateSpouse(index, 'name', e.target.value)}
-                        placeholder="Enter spouse name"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Spouse Surname</label>
-                      <input
-                        type="text"
-                        value={spouse.surname}
-                        onChange={(e) => updateSpouse(index, 'surname', e.target.value)}
-                        placeholder="Enter spouse surname"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Spouse ID Number</label>
-                      <input
-                        type="text"
-                        value={spouse.idNumber}
-                        onChange={(e) => updateSpouse(index, 'idNumber', e.target.value)}
-                        placeholder="Enter spouse ID number"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </section>
+                ))
+              )}
+            </section>
+          )}
 
-          {/* Section 4: Dependants */}
-          <section className="form-section">
-            <div className="section-header">
-              <h2>Dependants</h2>
-              <button type="button" onClick={addDependant} className="add-button">
-                ➕ Add Another Dependant
-              </button>
-            </div>
-            {dependants.length === 0 ? (
-              <p className="empty-section">No dependants added. Click the button above to add.</p>
-            ) : (
-              dependants.map((dependant, index) => (
-                <div key={index} className="repeatable-item">
-                  <div className="repeatable-header">
-                    <h3>Dependant #{index + 1}</h3>
-                    <button
-                      type="button"
-                      onClick={() => removeDependant(index)}
-                      className="remove-button"
-                      title="Remove dependant"
-                    >
-                      ✖
-                    </button>
+          {/* Section 4: Dependants - For FAMILY/SINGLE (Essential) or any XMAS BOX */}
+          {(policyType === 'family' || policyType === 'single' || policySelection.selectedProduct === 'xmas') && (
+            <section className="form-section">
+              <div className="section-header">
+                <h2>Dependants</h2>
+                <button type="button" onClick={addDependant} className="add-button">
+                  ➕ Add Another Dependant
+                </button>
+              </div>
+              {dependants.length === 0 ? (
+                <p className="empty-section">No dependants added. Click the button above to add.</p>
+              ) : (
+                dependants.map((dependant, index) => (
+                  <div key={index} className="repeatable-item">
+                    <div className="repeatable-header">
+                      <h3>Dependant #{index + 1}</h3>
+                      <button
+                        type="button"
+                        onClick={() => removeDependant(index)}
+                        className="remove-button"
+                        title="Remove dependant"
+                      >
+                        ✖
+                      </button>
+                    </div>
+                    <div className="form-grid">
+                      <div className="form-group">
+                        <label>Dependant Name</label>
+                        <input
+                          type="text"
+                          value={dependant.name}
+                          onChange={(e) => updateDependant(index, 'name', e.target.value)}
+                          placeholder="Enter dependant name"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Dependant Surname</label>
+                        <input
+                          type="text"
+                          value={dependant.surname}
+                          onChange={(e) => updateDependant(index, 'surname', e.target.value)}
+                          placeholder="Enter dependant surname"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Dependant ID Number</label>
+                        <input
+                          type="text"
+                          value={dependant.idNumber}
+                          onChange={(e) => updateDependant(index, 'idNumber', e.target.value)}
+                          placeholder="Enter dependant ID number"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="form-grid">
-                    <div className="form-group">
-                      <label>Dependant Name</label>
-                      <input
-                        type="text"
-                        value={dependant.name}
-                        onChange={(e) => updateDependant(index, 'name', e.target.value)}
-                        placeholder="Enter dependant name"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Dependant Surname</label>
-                      <input
-                        type="text"
-                        value={dependant.surname}
-                        onChange={(e) => updateDependant(index, 'surname', e.target.value)}
-                        placeholder="Enter dependant surname"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Dependant ID Number</label>
-                      <input
-                        type="text"
-                        value={dependant.idNumber}
-                        onChange={(e) => updateDependant(index, 'idNumber', e.target.value)}
-                        placeholder="Enter dependant ID number"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </section>
+                ))
+              )}
+            </section>
+          )}
 
-          {/* Section 5: Extended Family */}
-          <section className="form-section">
-            <div className="section-header">
-              <h2>Extended Family</h2>
-              <button type="button" onClick={addExtendedFamily} className="add-button">
-                ➕ Add Another Family Member
-              </button>
-            </div>
-            {extendedFamily.length === 0 ? (
-              <p className="empty-section">No extended family members added. Click the button above to add.</p>
-            ) : (
-              extendedFamily.map((member, index) => (
-                <div key={index} className="repeatable-item">
-                  <div className="repeatable-header">
-                    <h3>Family Member #{index + 1}</h3>
-                    <button
-                      type="button"
-                      onClick={() => removeExtendedFamily(index)}
-                      className="remove-button"
-                      title="Remove family member"
-                    >
-                      ✖
-                    </button>
+          {/* Section 5: Extended Family - For Essential policies only (FAMILY, INDIVIDUAL, SINGLE) */}
+          {policySelection.selectedProduct === 'essential' && policyType && (
+            <section className="form-section">
+              <div className="section-header">
+                <h2>Extended Family</h2>
+                <button type="button" onClick={addExtendedFamily} className="add-button">
+                  ➕ Add Another Family Member
+                </button>
+              </div>
+              {extendedFamily.length === 0 ? (
+                <p className="empty-section">No extended family members added. Click the button above to add.</p>
+              ) : (
+                extendedFamily.map((member, index) => (
+                  <div key={index} className="repeatable-item">
+                    <div className="repeatable-header">
+                      <h3>Family Member #{index + 1}</h3>
+                      <button
+                        type="button"
+                        onClick={() => removeExtendedFamily(index)}
+                        className="remove-button"
+                        title="Remove family member"
+                      >
+                        ✖
+                      </button>
+                    </div>
+                    <div className="form-grid">
+                      <div className="form-group">
+                        <label>Extended Family Name</label>
+                        <input
+                          type="text"
+                          value={member.name}
+                          onChange={(e) => updateExtendedFamily(index, 'name', e.target.value)}
+                          placeholder="Enter family member name"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Extended Family Surname</label>
+                        <input
+                          type="text"
+                          value={member.surname}
+                          onChange={(e) => updateExtendedFamily(index, 'surname', e.target.value)}
+                          placeholder="Enter family member surname"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Extended Family ID Number</label>
+                        <input
+                          type="text"
+                          value={member.idNumber}
+                          onChange={(e) => updateExtendedFamily(index, 'idNumber', e.target.value)}
+                          placeholder="Enter family member ID number"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="form-grid">
-                    <div className="form-group">
-                      <label>Extended Family Name</label>
-                      <input
-                        type="text"
-                        value={member.name}
-                        onChange={(e) => updateExtendedFamily(index, 'name', e.target.value)}
-                        placeholder="Enter family member name"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Extended Family Surname</label>
-                      <input
-                        type="text"
-                        value={member.surname}
-                        onChange={(e) => updateExtendedFamily(index, 'surname', e.target.value)}
-                        placeholder="Enter family member surname"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Extended Family ID Number</label>
-                      <input
-                        type="text"
-                        value={member.idNumber}
-                        onChange={(e) => updateExtendedFamily(index, 'idNumber', e.target.value)}
-                        placeholder="Enter family member ID number"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </section>
+                ))
+              )}
+            </section>
+          )}
 
           {/* Section 6: Bank Details */}
           <section className="form-section">
