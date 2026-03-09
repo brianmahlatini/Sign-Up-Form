@@ -29,6 +29,15 @@ function App() {
     accountNumber: '',
     accountType: ''
   });
+  
+  // Beneficiary State
+  const [beneficiary, setBeneficiary] = useState({
+    firstName: '',
+    surname: '',
+    idNumber: '',
+    relationship: '',
+    email: ''
+  });
 
   // Documents State
   const [document, setDocument] = useState(null);
@@ -255,6 +264,14 @@ function App() {
       [e.target.name]: e.target.value
     });
   };
+  
+  // Handle beneficiary changes
+  const handleBeneficiaryChange = (e) => {
+    setBeneficiary({
+      ...beneficiary,
+      [e.target.name]: e.target.value
+    });
+  };
 
   // Handle declaration changes
   const handleDeclarationChange = (e) => {
@@ -300,6 +317,15 @@ function App() {
       setSubmitStatus({
         type: 'error',
         message: 'Please fill in all bank details'
+      });
+      return false;
+    }
+    
+    // Check beneficiary required fields
+    if (!beneficiary.firstName || !beneficiary.surname || !beneficiary.idNumber || !beneficiary.relationship || !beneficiary.email) {
+      setSubmitStatus({
+        type: 'error',
+        message: 'Please fill in all beneficiary details'
       });
       return false;
     }
@@ -350,6 +376,7 @@ function App() {
           dependants: filteredDependants,
           extendedFamily: filteredExtendedFamily,
           bankDetails,
+          beneficiary,
           document: {
             name: document.name,
             type: document.type,
@@ -387,6 +414,13 @@ function App() {
       bankName: '',
       accountNumber: '',
       accountType: ''
+    });
+    setBeneficiary({
+      firstName: '',
+      surname: '',
+      idNumber: '',
+      relationship: '',
+      email: ''
     });
     setDocument(null);
     setDocumentName('');
@@ -897,8 +931,70 @@ function App() {
               </div>
             </div>
           </section>
+          
+          {/* Section 7: Beneficiary */}
+          <section className="form-section">
+            <h2>Beneficiary <span className="required-badge">Required</span></h2>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>First Name *</label>
+                <input
+                  type="text"
+                  name="firstName"
+                  value={beneficiary.firstName}
+                  onChange={handleBeneficiaryChange}
+                  required
+                  placeholder="Enter beneficiary first name"
+                />
+              </div>
+              <div className="form-group">
+                <label>Surname *</label>
+                <input
+                  type="text"
+                  name="surname"
+                  value={beneficiary.surname}
+                  onChange={handleBeneficiaryChange}
+                  required
+                  placeholder="Enter beneficiary surname"
+                />
+              </div>
+              <div className="form-group">
+                <label>ID Number *</label>
+                <input
+                  type="text"
+                  name="idNumber"
+                  value={beneficiary.idNumber}
+                  onChange={handleBeneficiaryChange}
+                  required
+                  placeholder="Enter beneficiary ID number"
+                />
+              </div>
+              <div className="form-group">
+                <label>Relationship *</label>
+                <input
+                  type="text"
+                  name="relationship"
+                  value={beneficiary.relationship}
+                  onChange={handleBeneficiaryChange}
+                  required
+                  placeholder="Enter relationship"
+                />
+              </div>
+              <div className="form-group">
+                <label>Email *</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={beneficiary.email}
+                  onChange={handleBeneficiaryChange}
+                  required
+                  placeholder="Enter beneficiary email"
+                />
+              </div>
+            </div>
+          </section>
 
-          {/* Section 7: Documents */}
+          {/* Section 8: Documents */}
           <section className="form-section">
             <h2>Documents <span className="required-badge">Required</span></h2>
             <div className="form-group file-upload">
@@ -922,7 +1018,7 @@ function App() {
             </div>
           </section>
 
-          {/* Section 8: Declaration */}
+          {/* Section 9: Declaration */}
           <section className="form-section">
             <h2>Declaration <span className="required-badge">Required</span></h2>
             <div className="form-group checkbox-group">
