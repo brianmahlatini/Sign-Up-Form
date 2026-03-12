@@ -13,6 +13,7 @@ function App() {
   const [mainMember, setMainMember] = useState({
     firstName: '',
     surname: '',
+    policyNumber: '',
     idNumber: '',
     cellphone: '',
     email: ''
@@ -403,6 +404,7 @@ function App() {
     setMainMember({
       firstName: '',
       surname: '',
+      policyNumber: '',
       idNumber: '',
       cellphone: '',
       email: ''
@@ -613,6 +615,17 @@ function App() {
                   onChange={handleMainMemberChange}
                   required
                   placeholder="Enter ID number"
+                />
+              </div>
+              <div className="form-group">
+                <label>Policy Number *</label>
+                <input
+                  type="text"
+                  name="policyNumber"
+                  value={mainMember.policyNumber}
+                  onChange={handleMainMemberChange}
+                  required
+                  placeholder="Enter policy number"
                 />
               </div>
               <div className="form-group">
