@@ -85,9 +85,8 @@ function App() {
   // Account Types
   const accountTypes = ['Savings', 'Cheque', 'Current'];
 
-  // CORS Proxy Configuration
-  const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/';
-  const WEBHOOK_URL = 'https://kgadev.app.n8n.cloud/webhook-test/policy-signup';
+  // API Endpoint
+  const WEBHOOK_URL = '/api/webhook';
 
   // Helper function to determine policy type from coverage option
   const getPolicyTypeFromCoverage = () => {
@@ -457,38 +456,8 @@ function App() {
       
       console.log('Submitting data:', jsonData);
 
-      // Try direct connection first
-      try {
-        const directResponse = await axios({
-          method: 'post',
-          url: WEBHOOK_URL,
-          data: jsonData,
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          timeout: 5000
-        });
-
-        console.log('Direct success:', directResponse.data);
-        
-        setSubmitStatus({
-          type: 'success',
-          message: '✅ Form submitted successfully!'
-        });
-        
-        resetForm();
-        setIsSubmitting(false);
-        return;
-      } catch (directError) {
-        console.log('Direct connection failed, using proxy:', directError.message);
-      }
-
-      // Use CORS proxy
-      const proxyUrl = CORS_PROXY + WEBHOOK_URL;
-      
-      const response = await fetch(proxyUrl, {
+      const response = await fetch(WEBHOOK_URL, {
         method: 'POST',
-        mode: 'cors',
         headers: {
           'Content-Type': 'application/json'
         },
@@ -507,7 +476,7 @@ function App() {
         responseData = { status: 'success' };
       }
 
-      console.log('Proxy success:', responseData);
+      console.log('Success:', responseData);
 
       setSubmitStatus({
         type: 'success',
@@ -537,23 +506,7 @@ function App() {
             </div>
           )
         });
-      } else if (error.message.includes('403')) {
-        setSubmitStatus({
-          type: 'error',
-          message: (
-            <div>
-              <strong>⚠️ CORS Proxy Error (403)</strong>
-              <p style={{ marginTop: '10px', fontSize: '0.9rem' }}>
-                Please refresh your CORS Anywhere access:
-              </p>
-              <ol style={{ textAlign: 'left', marginTop: '10px', paddingLeft: '20px' }}>
-                <li>Visit <strong>https://cors-anywhere.herokuapp.com</strong></li>
-                <li>Click the button to request temporary access</li>
-                <li>Return here and submit again</li>
-              </ol>
-            </div>
-          )
-        });
+      }
       } else {
         setSubmitStatus({
           type: 'error',
