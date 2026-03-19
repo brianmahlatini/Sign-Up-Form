@@ -203,6 +203,7 @@ h1 {
   font-size: 2.25rem;
   font-weight: 700;
   background: linear-gradient(135deg, var(--primary-600), var(--primary-800));
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: var(--space-xs);

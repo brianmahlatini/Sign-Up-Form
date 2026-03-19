@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import './App.css';
 
 function App() {
@@ -488,31 +487,10 @@ function App() {
     } catch (error) {
       console.error('Submission error:', error.message);
 
-      if (error.message.includes('404') || error.message.includes('not registered')) {
-        setSubmitStatus({
-          type: 'error',
-          message: (
-            <div>
-              <strong>⚠️ n8n Webhook Not Activated</strong>
-              <p style={{ marginTop: '10px', fontSize: '0.9rem' }}>
-                Please follow these steps:
-              </p>
-              <ol style={{ textAlign: 'left', marginTop: '10px', paddingLeft: '20px' }}>
-                <li>Open your n8n workflow</li>
-                <li>Click the <strong>"Execute Workflow"</strong> button at the bottom</li>
-                <li>Keep the workflow running</li>
-                <li>Submit this form again</li>
-              </ol>
-            </div>
-          )
-        });
-      }
-      } else {
-        setSubmitStatus({
-          type: 'error',
-          message: `Error: ${error.message}`
-        });
-      }
+      setSubmitStatus({
+        type: 'error',
+        message: `Error: ${error.message}`
+      });
     } finally {
       setIsSubmitting(false);
     }
