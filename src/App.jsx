@@ -1,5 +1,16 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import './App.css';
+import { policyTable } from './policyTable';
+
+const getSupportedMemberTypesForPolicy = (policyName) => {
+  if (!policyName) return new Set();
+
+  const supported = new Set();
+  for (const row of policyTable) {
+    if (row.policy === policyName) supported.add(row.memberType);
+  }
+  return supported;
+};
 
 function App() {
   // Policy Selection State
@@ -87,16 +98,9 @@ function App() {
   // API Endpoint
   const WEBHOOK_URL = '/api/webhook';
 
-  // Helper function to determine policy type from coverage option
-  const getPolicyTypeFromCoverage = () => {
-    if (!policySelection.coverageOption) return null;
-    
-    const option = policySelection.coverageOption;
-    if (option.includes('FAMILY')) return 'family';
-    if (option.includes('INDIVIDUAL')) return 'individual';
-    if (option.includes('SINGLE PARENT')) return 'single';
-    return null;
-  };
+  const supportedMemberTypes = useMemo(() => {
+    return getSupportedMemberTypesForPolicy(policySelection.coverageOption);
+  }, [policySelection.coverageOption]);
 
   // Get coverage options based on selected product
   const getCoverageOptions = () => {
@@ -132,60 +136,35 @@ function App() {
   // Handle policy selection changes
   const handlePolicyChange = (e) => {
     const { name, value } = e.target;
+
+    if (name === 'coverageOption') {
+      const supportedForSelection = getSupportedMemberTypesForPolicy(value);
+      if (!supportedForSelection.has('SPS')) setSpouses([]);
+      if (!supportedForSelection.has('DEP')) setDependants([]);
+      if (!supportedForSelection.has('EXT')) setExtendedFamily([]);
+    }
+
     setPolicySelection(prev => ({
       ...prev,
       [name]: value,
       // Reset coverage option when product changes
       ...(name === 'selectedProduct' && { coverageOption: '' })
     }));
-    
-    // Clear sections when policy type changes
-    if (name === 'coverageOption' && policySelection.selectedProduct === 'essential') {
-      // Clear spouses and dependants if not allowed for this policy type
-      const policyType = value.includes('FAMILY') ? 'family' : 
-                         value.includes('INDIVIDUAL') ? 'individual' : 
-                         value.includes('SINGLE PARENT') ? 'single' : null;
-      
-      if (policyType === 'individual') {
-        // Individual: clear spouses and dependants
-        setSpouses([]);
-        setDependants([]);
-      } else if (policyType === 'single') {
-        // Single Parent: clear spouses only
-        setSpouses([]);
-      }
-      // Family: keep all sections
-    }
   };
 
   // Check if spouses can be added
   const canAddSpouse = () => {
-    // For XMAS BOX, spouses can be added
-    if (policySelection.selectedProduct === 'xmas') return true;
-    
-    // For Essential, only FAMILY policies can add spouses
-    const policyType = getPolicyTypeFromCoverage();
-    return policyType === 'family';
+    return supportedMemberTypes.has('SPS');
   };
 
   // Check if dependants can be added
   const canAddDependant = () => {
-    // For XMAS BOX, dependants can be added
-    if (policySelection.selectedProduct === 'xmas') return true;
-    
-    // For Essential, FAMILY and SINGLE PARENT policies can add dependants
-    const policyType = getPolicyTypeFromCoverage();
-    return policyType === 'family' || policyType === 'single';
+    return supportedMemberTypes.has('DEP');
   };
 
   // Check if extended family can be added
   const canAddExtendedFamily = () => {
-    // For XMAS BOX, extended family CANNOT be added
-    if (policySelection.selectedProduct === 'xmas') return false;
-    
-    // For Essential, FAMILY, INDIVIDUAL, and SINGLE PARENT can all add extended family
-    const policyType = getPolicyTypeFromCoverage();
-    return policyType === 'family' || policyType === 'individual' || policyType === 'single';
+    return supportedMemberTypes.has('EXT');
   };
 
   // Add functions for repeatable sections with permission checks
@@ -497,7 +476,13 @@ function App() {
   };
 
   const coverageOptions = getCoverageOptions();
-  const policyType = getPolicyTypeFromCoverage();
+
+  const selectProduct = (selectedProduct) => {
+    setPolicySelection(prev => ({ ...prev, selectedProduct, coverageOption: '' }));
+    setSpouses([]);
+    setDependants([]);
+    setExtendedFamily([]);
+  };
 
   return (
     <div className="app">
@@ -592,7 +577,7 @@ function App() {
               {/* Essential Family Product */}
               <div 
                 className={`policy-card ${policySelection.selectedProduct === 'essential' ? 'selected' : ''}`}
-                onClick={() => setPolicySelection(prev => ({ ...prev, selectedProduct: 'essential', coverageOption: '' }))}
+                onClick={() => selectProduct('essential')}
               >
                 <div className="policy-card-header">
                   <h3>ESSENTIAL FAMILY</h3>
@@ -606,7 +591,7 @@ function App() {
               {/* XMAS Box Product */}
               <div 
                 className={`policy-card ${policySelection.selectedProduct === 'xmas' ? 'selected' : ''}`}
-                onClick={() => setPolicySelection(prev => ({ ...prev, selectedProduct: 'xmas', coverageOption: '' }))}
+                onClick={() => selectProduct('xmas')}
               >
                 <div className="policy-card-header">
                   <h3>XMAS BOX</h3>
@@ -651,7 +636,7 @@ function App() {
           </section>
 
           {/* Section 3: Spouses - For FAMILY policy (Essential) or any XMAS BOX */}
-          {(policyType === 'family' || policySelection.selectedProduct === 'xmas') && (
+          {policySelection.coverageOption && supportedMemberTypes.has('SPS') && (
             <section className="form-section">
               <div className="section-header">
                 <h2>Spouses</h2>
@@ -707,11 +692,11 @@ function App() {
                   </div>
                 ))
               )}
-            </section>
+          </section>
           )}
 
           {/* Section 4: Dependants - For FAMILY/SINGLE (Essential) or any XMAS BOX */}
-          {(policyType === 'family' || policyType === 'single' || policySelection.selectedProduct === 'xmas') && (
+          {policySelection.coverageOption && supportedMemberTypes.has('DEP') && (
             <section className="form-section">
               <div className="section-header">
                 <h2>Dependants</h2>
@@ -767,11 +752,11 @@ function App() {
                   </div>
                 ))
               )}
-            </section>
+          </section>
           )}
 
           {/* Section 5: Extended Family - For Essential policies only (FAMILY, INDIVIDUAL, SINGLE) */}
-          {policySelection.selectedProduct === 'essential' && policyType && (
+          {policySelection.coverageOption && supportedMemberTypes.has('EXT') && (
             <section className="form-section">
               <div className="section-header">
                 <h2>Extended Family</h2>
